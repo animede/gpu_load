@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#090b10" />
+    <title>GPU Pulse — Real-time monitor</title>
+    <link rel="stylesheet" href="/styles.css?v=5" />
+  </head>
+  <body>
+    <div class="noise" aria-hidden="true"></div>
+    <main class="shell">
+      <header class="topbar">
+        <a class="brand" href="/" aria-label="GPU Pulse home">
+          <span class="brand-mark"><i></i><i></i><i></i></span>
+          <span>GPU PULSE</span>
+        </a>
+        <div class="topbar-right">
+          <span id="hostName" class="host">LOCALHOST</span>
+          <span id="connection" class="connection"><i></i> CONNECTING</span>
+        </div>
+      </header>
+
+      <section class="hero">
+        <div>
+          <p class="eyebrow">LINUX / LIVE TELEMETRY</p>
+          <h1>Graphics<br /><span>under pressure.</span></h1>
+        </div>
+        <div class="hero-meta">
+          <div><span>UPDATE</span><strong id="updateRateLabel">1.0 SEC</strong></div>
+          <div><span>SESSION</span><strong id="sessionTime">00:00:00</strong></div>
+        </div>
+      </section>
+
+      <section id="emptyState" class="empty-state" hidden>
+        <span class="empty-icon">!</span>
+        <div>
+          <h2>GPUを検出できませんでした</h2>
+          <p><code>nvidia-smi</code> または <code>/sys/class/drm</code> の読み取りを確認してください。</p>
+        </div>
+      </section>
+
+      <section id="dashboard" hidden>
+        <div class="section-heading">
+          <div>
+            <span>01</span>
+            <h2>Device overview</h2>
+          </div>
+          <div class="device-controls">
+            <label class="picker-field mode-field">
+              <span>DISPLAY</span>
+              <select id="viewMode" aria-label="表示モード">
+                <option value="single">SINGLE</option>
+                <option value="dual">DUAL GPU</option>
+              </select>
+            </label>
+            <label class="picker-field">
+              <span id="primaryPickerLabel">ACTIVE DEVICE</span>
+              <select id="devicePicker" aria-label="監視するGPU"></select>
+            </label>
+            <label id="secondaryPickerWrap" class="picker-field" hidden>
+              <span>GPU B</span>
+              <select id="secondaryDevicePicker" aria-label="比較する2台目のGPU"></select>
+            </label>
+          </div>
+        </div>
+
+        <div id="singleOverview" class="metrics-grid">
+          <article class="metric metric-primary">
+            <div class="metric-head"><span>GPU LOAD</span><em>CORE</em></div>
+            <div class="metric-value"><strong id="gpuLoad">—</strong><small>%</small></div>
+            <div class="bar"><i id="gpuLoadBar"></i></div>
+            <p id="gpuState">WAITING FOR DATA</p>
+          </article>
+          <article class="metric">
+            <div class="metric-head"><span>VRAM</span><em>ALLOCATED</em></div>
+            <div class="metric-value"><strong id="memoryLoad">—</strong><small>%</small></div>
+            <div class="bar"><i id="memoryLoadBar"></i></div>
+            <p><b id="memoryUsed">—</b> / <span id="memoryTotal">—</span></p>
+          </article>
+          <article class="metric">
+            <div class="metric-head"><span>THERMAL</span><em>EDGE</em></div>
+            <div class="metric-value"><strong id="temperature">—</strong><small>°C</small></div>
+            <div class="bar"><i id="temperatureBar"></i></div>
+            <p id="thermalState">NO READING</p>
+          </article>
+          <article class="metric">
+            <div class="metric-head"><span>POWER</span><em>DRAW</em></div>
+            <div class="metric-value"><strong id="power">—</strong><small>W</small></div>
+            <div class="bar"><i id="powerBar"></i></div>
+            <p><b id="powerPercent">—</b> OF POWER LIMIT</p>
+          </article>
+        </div>
+
+        <div id="dualOverview" class="dual-overview" hidden>
+          <article class="dual-gpu dual-gpu-primary">
+            <div class="dual-gpu-head">
+              <div><span>GPU A</span><h3 id="dualNameA">—</h3></div>
+              <span id="dualIndexA" class="dual-index">GPU —</span>
+            </div>
+            <div class="dual-load"><strong id="dualLoadA">—</strong><small>%</small></div>
+            <div class="bar"><i id="dualLoadBarA"></i></div>
+            <p id="dualStateA">WAITING FOR DATA</p>
+            <dl>
+              <div><dt>VRAM</dt><dd id="dualMemoryA">—</dd></div>
+              <div><dt>THERMAL</dt><dd id="dualTempA">—</dd></div>
+              <div><dt>POWER</dt><dd id="dualPowerA">—</dd></div>
+            </dl>
+          </article>
+          <article class="dual-gpu dual-gpu-secondary">
+            <div class="dual-gpu-head">
+              <div><span>GPU B</span><h3 id="dualNameB">—</h3></div>
+              <span id="dualIndexB" class="dual-index">GPU —</span>
+            </div>
+            <div class="dual-load"><strong id="dualLoadB">—</strong><small>%</small></div>
+            <div class="bar"><i id="dualLoadBarB"></i></div>
+            <p id="dualStateB">WAITING FOR DATA</p>
+            <dl>
+              <div><dt>VRAM</dt><dd id="dualMemoryB">—</dd></div>
+              <div><dt>THERMAL</dt><dd id="dualTempB">—</dd></div>
+              <div><dt>POWER</dt><dd id="dualPowerB">—</dd></div>
+            </dl>
+          </article>
+        </div>
+
+        <div class="section-heading chart-heading">
+          <div>
+            <span>02</span>
+            <h2>Performance history</h2>
+          </div>
+          <div class="controls">
+            <label>
+              <span>INTERVAL</span>
+              <select id="ratePicker" aria-label="更新間隔">
+                <option value="1000">1 sec</option>
+                <option value="2000">2 sec</option>
+                <option value="5000">5 sec</option>
+              </select>
+            </label>
+            <button id="pauseButton" type="button"><i></i><span>PAUSE</span></button>
+          </div>
+        </div>
+
+        <article id="singleChartCard" class="chart-card">
+          <div class="chart-legend">
+            <span><i class="load-dot"></i>GPU LOAD</span>
+            <span><i class="memory-dot"></i>VRAM</span>
+            <span><i class="temp-dot"></i>TEMPERATURE</span>
+            <span><i class="power-dot"></i>POWER / LIMIT</span>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="historyChart" aria-label="GPU負荷の履歴グラフ"></canvas>
+            <div class="axis-labels"><span>100</span><span>75</span><span>50</span><span>25</span><span>0</span></div>
+          </div>
+          <div class="chart-footer"><span id="windowLabel">—60 SEC</span><span>NOW</span></div>
+        </article>
+
+        <div id="dualCharts" class="dual-charts" hidden>
+          <article class="chart-card dual-chart-card">
+            <div class="dual-chart-title"><span>GPU A</span><strong id="dualChartNameA">—</strong></div>
+            <div class="chart-legend">
+              <span><i class="load-dot"></i>LOAD</span>
+              <span><i class="memory-dot"></i>VRAM</span>
+              <span><i class="temp-dot"></i>TEMP</span>
+              <span><i class="power-dot"></i>POWER</span>
+            </div>
+            <div class="chart-wrap">
+              <canvas id="dualHistoryChartA" aria-label="GPU Aの履歴グラフ"></canvas>
+              <div class="axis-labels"><span>100</span><span>75</span><span>50</span><span>25</span><span>0</span></div>
+            </div>
+            <div class="chart-footer"><span class="window-label">—60 SEC</span><span>NOW</span></div>
+          </article>
+          <article class="chart-card dual-chart-card">
+            <div class="dual-chart-title"><span>GPU B</span><strong id="dualChartNameB">—</strong></div>
+            <div class="chart-legend">
+              <span><i class="load-dot"></i>LOAD</span>
+              <span><i class="memory-dot"></i>VRAM</span>
+              <span><i class="temp-dot"></i>TEMP</span>
+              <span><i class="power-dot"></i>POWER</span>
+            </div>
+            <div class="chart-wrap">
+              <canvas id="dualHistoryChartB" aria-label="GPU Bの履歴グラフ"></canvas>
+              <div class="axis-labels"><span>100</span><span>75</span><span>50</span><span>25</span><span>0</span></div>
+            </div>
+            <div class="chart-footer"><span class="window-label">—60 SEC</span><span>NOW</span></div>
+          </article>
+        </div>
+
+        <div id="deviceDetails" class="details-grid">
+          <article class="device-card">
+            <p>ACTIVE GRAPHICS PROCESSOR</p>
+            <h3 id="gpuName">—</h3>
+            <div class="tags">
+              <span id="vendorTag">—</span><span id="backendTag">—</span><span id="gpuIndex">GPU 0</span>
+            </div>
+          </article>
+          <article class="spec-list">
+            <div><span>CORE CLOCK</span><strong id="clock">—</strong></div>
+            <div><span>FAN SPEED</span><strong id="fan">—</strong></div>
+            <div><span>MEMORY ENGINE</span><strong id="memoryEngine">—</strong></div>
+            <div><span>LAST SAMPLE</span><strong id="lastSample">—</strong></div>
+          </article>
+        </div>
+      </section>
+
+      <footer>
+        <span>GPU PULSE / SYSTEM TELEMETRY</span>
+        <span>DATA STAYS ON THIS MACHINE</span>
+      </footer>
+    </main>
+    <script src="/app.js?v=3" defer></script>
+  </body>
+</html>
