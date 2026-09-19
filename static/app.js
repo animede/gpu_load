@@ -19,6 +19,7 @@ let snapshot = null;
 let selectedGpuId = null;
 let secondaryGpuId = null;
 let viewMode = "single";
+let viewModeInitialized = false;
 let timer = null;
 let intervalMs = 1000;
 let paused = false;
@@ -44,7 +45,12 @@ function updatePicker(gpus) {
   }
   const dualOption = els.viewMode.querySelector('option[value="dual"]');
   dualOption.disabled = gpus.length < 2;
-  if (gpus.length < 2 && viewMode === "dual") setViewMode("single");
+  if (!viewModeInitialized && gpus.length > 0) {
+    viewModeInitialized = true;
+    setViewMode(gpus.length >= 2 ? "dual" : "single");
+  } else if (gpus.length < 2 && viewMode === "dual") {
+    setViewMode("single");
+  }
   const signature = gpus.map((gpu) => `${gpu.id}:${gpu.name}`).join("|");
   if (els.picker.dataset.signature === signature) return;
   const makeOptions = (selectedId) => gpus.map((gpu) => {

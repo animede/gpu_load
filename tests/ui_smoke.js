@@ -72,9 +72,8 @@ require("../static/app.js");
 
 setImmediate(() => {
   const mode = getElement("viewMode");
-  mode.value = "dual";
-  mode.listeners.change();
 
+  assert.equal(mode.value, "dual");
   assert.equal(getElement("singleOverview").hidden, true);
   assert.equal(getElement("dualOverview").hidden, false);
   assert.equal(getElement("singleChartCard").hidden, true);
