@@ -13,6 +13,8 @@ const els = {
   deviceDetails: $("deviceDetails"), rate: $("ratePicker"), pause: $("pauseButton"),
   singleChartCard: $("singleChartCard"), dualCharts: $("dualCharts"),
   chart: $("historyChart"), dualChartA: $("dualHistoryChartA"), dualChartB: $("dualHistoryChartB"),
+  singleProcessList: $("singleProcessList"), dualProcessListA: $("dualProcessListA"),
+  dualProcessListB: $("dualProcessListB"),
 };
 
 let snapshot = null;
@@ -35,6 +37,40 @@ function formatMemory(mib) {
   if (!finite(mib)) return "—";
   if (mib >= 1024) return `${(mib / 1024).toFixed(mib > 10240 ? 1 : 2)} GiB`;
   return `${Math.round(mib)} MiB`;
+}
+
+function makeElement(tag, className, content = "") {
+  const element = document.createElement(tag);
+  element.className = className;
+  element.textContent = content;
+  return element;
+}
+
+function renderProcesses(gpu, listElement, countId) {
+  const processes = Array.isArray(gpu.processes) ? gpu.processes : [];
+  setText(countId, processes.length ? `${processes.length} ACTIVE` : "NONE");
+  if (!gpu.processesSupported) {
+    const empty = makeElement("p", "process-empty", "PROCESS DATA IS NOT AVAILABLE FOR THIS GPU");
+    listElement.replaceChildren(empty);
+    return;
+  }
+  if (processes.length === 0) {
+    const empty = makeElement("p", "process-empty", "NO MAJOR COMPUTE PROCESS DETECTED");
+    listElement.replaceChildren(empty);
+    return;
+  }
+  const rows = processes.map((process, index) => {
+    const row = makeElement("div", "process-row");
+    const rank = makeElement("span", "process-rank", String(index + 1).padStart(2, "0"));
+    const identity = makeElement("div", "process-identity");
+    const name = makeElement("strong", "", process.name || "UNKNOWN");
+    const pid = makeElement("span", "", `PID ${process.pid ?? "—"}`);
+    identity.replaceChildren(name, pid);
+    const memory = makeElement("span", "process-memory", formatMemory(process.memoryUsedMiB));
+    row.replaceChildren(rank, identity, memory);
+    return row;
+  });
+  listElement.replaceChildren(...rows);
 }
 
 function updatePicker(gpus) {
@@ -138,6 +174,7 @@ function renderGpu(gpu) {
   setText("fan", finite(gpu.fanPercent) ? `${Math.round(gpu.fanPercent)}%` : finite(gpu.fanRpm) ? `${Math.round(gpu.fanRpm)} RPM` : "—");
   setText("memoryEngine", finite(gpu.memoryUtilization) ? `${Math.round(gpu.memoryUtilization)}% BUSY` : "—");
   setText("lastSample", new Date(snapshot.timestamp).toLocaleTimeString("ja-JP", { hour12: false }));
+  renderProcesses(gpu, els.singleProcessList, "singleProcessCount");
   drawCharts();
 }
 
@@ -150,6 +187,7 @@ function renderDualGpu(gpu, suffix) {
   setText(`dualMemory${suffix}`, finite(gpu.memoryPercent) ? `${Math.round(gpu.memoryPercent)}%` : "—");
   setText(`dualTemp${suffix}`, finite(gpu.temperatureC) ? `${Math.round(gpu.temperatureC)}°C` : "—");
   setText(`dualPower${suffix}`, finite(gpu.powerW) ? `${Math.round(gpu.powerW)} W` : "—");
+  renderProcesses(gpu, els[`dualProcessList${suffix}`], `dualProcessCount${suffix}`);
 }
 
 function renderSelected() {

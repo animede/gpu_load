@@ -61,9 +61,11 @@ global.fetch = async () => ({
     demo: false,
     gpus: [
       { id: "gpu-0", index: 0, name: "GPU Zero", utilization: 72, memoryPercent: 31,
-        temperatureC: 58, powerW: 150, powerLimitW: 300 },
+        temperatureC: 58, powerW: 150, powerLimitW: 300, processesSupported: true,
+        processes: [{ pid: 123, name: "python3", memoryUsedMiB: 4096 }] },
       { id: "gpu-1", index: 1, name: "GPU One", utilization: 44, memoryPercent: 19,
-        temperatureC: 49, powerW: 100, powerLimitW: 250 },
+        temperatureC: 49, powerW: 100, powerLimitW: 250, processesSupported: true,
+        processes: [] },
     ],
   }),
 });
@@ -82,6 +84,9 @@ setImmediate(() => {
   assert.equal(getElement("dualLoadB").textContent, "44");
   assert.ok(getElement("dualHistoryChartA").context.strokes.includes("#b48cff"));
   assert.ok(getElement("dualHistoryChartB").context.strokes.includes("#b48cff"));
+  assert.equal(getElement("dualProcessCountA").textContent, "1 ACTIVE");
+  assert.equal(getElement("dualProcessListA").children[0].children[1].children[0].textContent, "python3");
+  assert.equal(getElement("dualProcessCountB").textContent, "NONE");
 
   mode.value = "single";
   mode.listeners.change();

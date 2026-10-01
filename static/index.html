@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#090b10" />
     <title>GPU Pulse — Real-time monitor</title>
-    <link rel="stylesheet" href="/styles.css?v=5" />
+    <link rel="stylesheet" href="/styles.css?v=7" />
   </head>
   <body>
     <div class="noise" aria-hidden="true"></div>
@@ -24,7 +24,7 @@
       <section class="hero">
         <div>
           <p class="eyebrow">LINUX / LIVE TELEMETRY</p>
-          <h1>Graphics<br /><span>under pressure.</span></h1>
+          <h1>Graphics <span>under pressure.</span></h1>
         </div>
         <div class="hero-meta">
           <div><span>UPDATE</span><strong id="updateRateLabel">1.0 SEC</strong></div>
@@ -153,6 +153,14 @@
             <div class="axis-labels"><span>100</span><span>75</span><span>50</span><span>25</span><span>0</span></div>
           </div>
           <div class="chart-footer"><span id="windowLabel">—60 SEC</span><span>NOW</span></div>
+          <div class="process-panel">
+            <div class="process-heading">
+              <div><span>GPU OWNERS</span><strong>DOMINANT COMPUTE PROCESSES</strong></div>
+              <span id="singleProcessCount" class="process-count">—</span>
+            </div>
+            <div id="singleProcessList" class="process-list" aria-live="polite"></div>
+            <p class="process-note">DISPLAY SERVERS AND DESKTOP COMPOSITORS ARE HIDDEN</p>
+          </div>
         </article>
 
         <div id="dualCharts" class="dual-charts" hidden>
@@ -169,6 +177,14 @@
               <div class="axis-labels"><span>100</span><span>75</span><span>50</span><span>25</span><span>0</span></div>
             </div>
             <div class="chart-footer"><span class="window-label">—60 SEC</span><span>NOW</span></div>
+            <div class="process-panel">
+              <div class="process-heading">
+                <div><span>GPU OWNERS</span><strong>DOMINANT PROCESSES</strong></div>
+                <span id="dualProcessCountA" class="process-count">—</span>
+              </div>
+              <div id="dualProcessListA" class="process-list" aria-live="polite"></div>
+              <p class="process-note">DISPLAY SERVICES HIDDEN</p>
+            </div>
           </article>
           <article class="chart-card dual-chart-card">
             <div class="dual-chart-title"><span>GPU B</span><strong id="dualChartNameB">—</strong></div>
@@ -183,6 +199,14 @@
               <div class="axis-labels"><span>100</span><span>75</span><span>50</span><span>25</span><span>0</span></div>
             </div>
             <div class="chart-footer"><span class="window-label">—60 SEC</span><span>NOW</span></div>
+            <div class="process-panel">
+              <div class="process-heading">
+                <div><span>GPU OWNERS</span><strong>DOMINANT PROCESSES</strong></div>
+                <span id="dualProcessCountB" class="process-count">—</span>
+              </div>
+              <div id="dualProcessListB" class="process-list" aria-live="polite"></div>
+              <p class="process-note">DISPLAY SERVICES HIDDEN</p>
+            </div>
           </article>
         </div>
 
@@ -208,6 +232,6 @@
         <span>DATA STAYS ON THIS MACHINE</span>
       </footer>
     </main>
-    <script src="/app.js?v=3" defer></script>
+    <script src="/app.js?v=4" defer></script>
   </body>
 </html>

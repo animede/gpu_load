@@ -27,6 +27,26 @@ NVIDIA_FIELDS = (
     "memory.total,temperature.gpu,power.draw,power.limit,"
     "clocks.current.graphics,fan.speed"
 )
+NVIDIA_PROCESS_FIELDS = "gpu_uuid,pid,process_name,used_gpu_memory"
+MIN_PROCESS_MEMORY_MIB = 64
+MAX_PROCESSES_PER_GPU = 5
+IGNORED_GPU_PROCESSES = {
+    "xorg",
+    "xwayland",
+    "gnome-shell",
+    "kwin_wayland",
+    "kwin_x11",
+    "plasmashell",
+    "mutter",
+    "weston",
+    "sway",
+    "wayfire",
+    "hyprland",
+    "cinnamon",
+    "compiz",
+    "picom",
+    "compton",
+}
 
 
 def _number(value: str, *, integer: bool = False) -> float | int | None:
@@ -94,6 +114,94 @@ def read_nvidia() -> list[dict[str, Any]]:
             }
         )
     return devices
+
+
+def _process_basename(name: str) -> str:
+    """Return a compact executable name suitable for the dashboard."""
+    normalized = name.strip().replace("\\", "/")
+    return normalized.rsplit("/", 1)[-1] or "unknown"
+
+
+def _is_ignored_gpu_process(name: str) -> bool:
+    """Hide desktop compositors and display servers from the workload list."""
+    return _process_basename(name).lower().removesuffix(".exe") in IGNORED_GPU_PROCESSES
+
+
+def _process_display_name(pid: int, process_name: str) -> str:
+    """Make Python GPU jobs distinguishable without exposing full command lines."""
+    executable = _process_basename(process_name)
+    if not executable.lower().startswith(("python", "pypy")):
+        return executable
+    try:
+        raw_args = Path(f"/proc/{pid}/cmdline").read_bytes().split(b"\0")
+        args = [arg.decode("utf-8", errors="replace") for arg in raw_args if arg]
+    except OSError:
+        return executable
+    if len(args) < 2:
+        return executable
+
+    detail: list[str] = []
+    if args[1] == "-m" and len(args) > 2:
+        detail.append(args[2])
+        if len(args) > 3 and not args[3].startswith("-"):
+            detail.append(_process_basename(args[3]))
+    elif not args[1].startswith("-"):
+        detail.append(_process_basename(args[1]))
+        if (
+            len(args) > 2
+            and detail[0] in {"uvicorn", "gunicorn", "torchrun"}
+            and not args[2].startswith("-")
+        ):
+            detail.append(_process_basename(args[2]))
+    return f"{executable} · {' '.join(detail)}" if detail else executable
+
+
+def read_nvidia_processes() -> dict[str, list[dict[str, Any]]]:
+    """Read the largest NVIDIA compute processes, grouped by GPU UUID."""
+    try:
+        result = subprocess.run(
+            [
+                "nvidia-smi",
+                f"--query-compute-apps={NVIDIA_PROCESS_FIELDS}",
+                "--format=csv,noheader,nounits",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=3,
+            check=False,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return {}
+    if result.returncode != 0:
+        return {}
+
+    processes: dict[str, list[dict[str, Any]]] = {}
+    for row in csv.reader(result.stdout.splitlines(), skipinitialspace=True):
+        if len(row) != 4:
+            continue
+        gpu_id = row[0].strip()
+        pid = _number(row[1], integer=True)
+        memory_mib = _number(row[3], integer=True)
+        if (
+            not gpu_id
+            or pid is None
+            or memory_mib is None
+            or memory_mib < MIN_PROCESS_MEMORY_MIB
+            or _is_ignored_gpu_process(row[2])
+        ):
+            continue
+        processes.setdefault(gpu_id, []).append(
+            {
+                "pid": pid,
+                "name": _process_display_name(pid, row[2]),
+                "memoryUsedMiB": memory_mib,
+            }
+        )
+
+    for gpu_processes in processes.values():
+        gpu_processes.sort(key=lambda process: process["memoryUsedMiB"], reverse=True)
+        del gpu_processes[MAX_PROCESSES_PER_GPU:]
+    return processes
 
 
 def _read_text(path: Path) -> str | None:
@@ -210,6 +318,11 @@ def demo_devices(now: float | None = None) -> list[dict[str, Any]]:
             "powerLimitW": 250,
             "clockMHz": round(510 + wave * 1960),
             "fanPercent": round(24 + wave * 48),
+            "processesSupported": True,
+            "processes": [
+                {"pid": 18420, "name": "python3", "memoryUsedMiB": 6240},
+                {"pid": 9187, "name": "blender", "memoryUsedMiB": 2310},
+            ],
         },
         {
             "id": "demo-gpu-1",
@@ -227,6 +340,10 @@ def demo_devices(now: float | None = None) -> list[dict[str, Any]]:
             "powerLimitW": 230,
             "clockMHz": round(420 + second_wave * 2110),
             "fanPercent": round(20 + second_wave * 57),
+            "processesSupported": True,
+            "processes": [
+                {"pid": 22731, "name": "ollama", "memoryUsedMiB": 7920},
+            ],
         },
     ]
 
@@ -240,7 +357,14 @@ class GPUMonitor:
             devices = demo_devices()
         else:
             nvidia = read_nvidia()
+            processes_by_gpu = read_nvidia_processes() if nvidia else {}
+            for device in nvidia:
+                device["processesSupported"] = True
+                device["processes"] = processes_by_gpu.get(device["id"], [])
             devices = nvidia + read_sysfs(skip_nvidia=bool(nvidia))
+            for device in devices[len(nvidia):]:
+                device["processesSupported"] = False
+                device["processes"] = []
         return {
             "timestamp": int(time.time() * 1000),
             "hostname": os.uname().nodename,
