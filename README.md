@@ -2,6 +2,10 @@
 
 Linux に搭載された GPU の負荷、VRAM、温度、消費電力などをリアルタイム表示するローカル Web アプリです。外部ライブラリやクラウド接続は不要で、取得したデータはマシン外へ送信しません。
 
+## サンプルGUI
+
+![GPU PulseのデュアルGPU監視画面](docs/gpu-pulse-dashboard.png)
+
 ## 対応
 
 - NVIDIA: `nvidia-smi`（負荷、VRAM、温度、電力、クロック、ファン）
@@ -48,3 +52,7 @@ node tests/ui_smoke.js
 - NVIDIA GPU が表示されない: ターミナルで `nvidia-smi` が成功するか確認してください。
 - AMD / Intel の項目が `—` になる: 使用中のカーネルドライバーがその sysfs カウンターを公開していない場合があります。
 - ポートが使用中: `./run.sh --port 9000` のように別ポートを指定してください。
+
+## ライセンス
+
+このプロジェクトは [MIT License](LICENSE) のもとで公開されています。
